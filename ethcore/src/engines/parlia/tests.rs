@@ -28,14 +28,14 @@ pub struct Snapshot1 {
 fn test2() {
     // let recent_snaps:RwLock<LruCache<H256, Snapshot>> = RwLock::new(LruCache::new(SNAP_CACHE_NUM));
     // let mut snap_by_hash = recent_snaps.write();
-    let mut snap_by_hash = LruCache::new(SNAP_CACHE_NUM);
-    snap_by_hash.insert(H256(ethereum_types::H256::from(0)),Snapshot1{
-        epoch: 0_u64,
-        number: 0,
-        hash: Default::default(),
-        validators: Default::default(),
-        recents: Default::default()
-    });
-
+    // let mut snap_by_hash = LruCache::new(SNAP_CACHE_NUM);
+    // snap_by_hash.insert(H256(ethereum_types::H256::from(0)),Snapshot1{
+    //     epoch: 0_u64,
+    //     number: 0,
+    //     hash: Default::default(),
+    //     validators: Default::default(),
+    //     recents: Default::default()
+    // });
+    println!("{}",std::u64::MAX / 2);
 
 }

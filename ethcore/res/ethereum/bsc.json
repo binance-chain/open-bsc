@@ -31,7 +31,7 @@
 		"eip1706Transition": "0x0",
 		"eip1884Transition": "0x0",
 		"eip2028Transition": "0x0",
-		"gasLimitBoundDivisor": "0x400",
+		"gasLimitBoundDivisor": "0x100",
 		"maxCodeSize": "0x6000",
 		"maxCodeSizeTransition": "0x0",
 		"maximumExtraDataSize": "0xffff",

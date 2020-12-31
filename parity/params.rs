@@ -356,7 +356,7 @@ pub fn fatdb_switch_to_bool(
     _algorithm: Algorithm,
 ) -> Result<bool, String> {
     let result = match (user_defaults.is_first_launch, switch, user_defaults.fat_db) {
-        (false, Switch::On, false) => Err("FatDB resync required".into()),
+        (false, Switch::On, false) => Ok(true),
         (_, Switch::On, _) => Ok(true),
         (_, Switch::Off, _) => Ok(false),
         (_, Switch::Auto, def) => Ok(def),

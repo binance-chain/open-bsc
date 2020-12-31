@@ -24,7 +24,7 @@ use error::Error;
 use ethereum_types::{Address, H256};
 use kvdb::KeyValueDB;
 use serde::{Deserialize, Serialize};
-use std::collections::{BTreeSet, HashMap, BTreeMap};
+use std::collections::{BTreeSet, BTreeMap};
 use std::sync::Arc;
 use types::header::Header;
 
@@ -137,7 +137,7 @@ impl Snapshot {
         let mut ite = self.validators.iter();
         let mut res = ite.next().unwrap();
         if index > 0 {
-            for _ in 0..index - 1 {
+            for _ in 0..index {
                 res = ite.next().unwrap();
             }
         }

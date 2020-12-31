@@ -26,6 +26,7 @@ pub mod util;
 
 use block::ExecutedBlock;
 use client::{BlockId, EngineClient};
+use engines;
 use engines::parlia::params::ParliaParams;
 use engines::parlia::snapshot::Snapshot;
 use engines::parlia::util::{is_system_transaction, recover_creator};
@@ -38,8 +39,10 @@ use kvdb::KeyValueDB;
 use lru_cache::LruCache;
 use machine::{Call, EthereumMachine};
 use parking_lot::RwLock;
+use state::CleanupMode;
 use std::collections::BTreeSet;
 use std::ops::{Add, Mul};
+use std::str::FromStr;
 use std::sync::{Arc, Weak};
 use std::time::{Duration, SystemTime};
 use types::header::{ExtendedHeader, Header};
@@ -67,10 +70,10 @@ pub const SIGNING_DELAY_NOTURN_MS: u64 = 500;
 pub const SNAP_CACHE_NUM: usize = 512;
 /// Number of blocks after which to save the snapshot to the database
 pub const CHECKPOINT_INTERVAL: u64 = 1024;
-/// The bound divisor of the gas limit, used in update calculations.
-pub const GAS_LIMIT_BOUND_DIVISOR: usize = 256;
 /// Percentage to system reward.
 pub const SYSTEM_REWARD_PERCENT: usize = 4;
+
+const INIT_TX_NUM: usize = 7;
 
 use_contract!(validator_ins, "res/contracts/bsc_validators.json");
 use_contract!(slash_ins, "res/contracts/bsc_slash.json");
@@ -118,7 +121,10 @@ impl Parlia {
                         break;
                     }
                     if block_number % CHECKPOINT_INTERVAL == 0 {
-                        if let Some(new_snap) = Snapshot::load(Arc::clone(&self.db.read().as_ref().unwrap()), &block_hash) {
+                        if let Some(new_snap) = Snapshot::load(
+                            Arc::clone(&self.db.read().as_ref().unwrap()),
+                            &block_hash,
+                        ) {
                             snap = new_snap;
                             break;
                         }
@@ -137,11 +143,13 @@ impl Parlia {
                             }
                         }
                     }
+                    println!("{:?}", block_hash);
                     if let Some(header) = c.block_header(BlockId::Hash(block_hash)) {
                         headers.push(header.decode()?);
                         block_number -= 1;
                         block_hash = header.parent_hash();
                     } else {
+                        println!("{:?}", block_hash);
                         Err(EngineError::ParliaUnContinuousHeader)?
                     }
                 }
@@ -237,7 +245,12 @@ impl Engine<EthereumMachine> for Parlia {
         for i in 0..txs.len() {
             let tx = txs.get(i).unwrap();
             let r = _block.receipts.get(i).unwrap();
-            reward = reward.add(tx.gas.mul(r.gas_used));
+            if i == 0 {
+                reward = reward.add(tx.gas_price.mul(r.gas_used));
+            } else {
+                let last_used = _block.receipts.get(i - 1).unwrap().gas_used;
+                reward = reward.add(tx.gas_price.mul(r.gas_used - last_used));
+            }
         }
         if reward > 0.into() {
             let sys_reward = reward >> SYSTEM_REWARD_PERCENT;
@@ -264,12 +277,25 @@ impl Engine<EthereumMachine> for Parlia {
                 data: validator_dis_data,
             };
             expect_system_txs.push(validator_dis_tx);
+            // _block.state.kill_account(&engines::SYSTEM_ACCOUNT);
         }
+        // else if _block.header.number() == 1 {
+        //     // force create
+        //     _block.state.add_balance(
+        //         &engines::SYSTEM_ACCOUNT,
+        //         &U256::from(0),
+        //         CleanupMode::ForceCreate,
+        //     );
+        // }
 
         for tx in txs {
             if is_system_transaction(tx, header.author()) {
                 actual_system_txs.push(tx);
             }
+        }
+        if header.number() == 1 {
+            // skip first 7 init transaction
+            actual_system_txs = actual_system_txs[INIT_TX_NUM..].to_owned();
         }
         if actual_system_txs.len() != expect_system_txs.len() {
             Err(EngineError::ParliaSystemTxMismatch)?
@@ -376,7 +402,17 @@ impl Engine<EthereumMachine> for Parlia {
                 found: *header.gas_limit(),
             }))?
         }
-        let snap = self.snapshot(num - 1, *header.parent_hash())?;
+        Ok(())
+    }
+
+    fn verify_block_family(&self, header: &Header, parent: &Header) -> Result<(), Error> {
+        let num = header.number();
+        let snap = self.snapshot(parent.number(), parent.hash())?;
+        if header.timestamp()
+            < parent.timestamp() + self.period + snap.back_off_time(header.author())
+        {
+            Err(EngineError::ParliaFutureBlock)?
+        }
         let signer = recover_creator(header, &self.chain_id)?;
         if signer != *header.author() {
             Err(EngineError::ParliaAuthorMismatch)?
@@ -403,31 +439,6 @@ impl Engine<EthereumMachine> for Parlia {
             Err(BlockError::InvalidDifficulty(Mismatch {
                 expected: DIFF_NOTURN,
                 found: *header.difficulty(),
-            }))?
-        }
-        Ok(())
-    }
-
-    fn verify_block_family(&self, header: &Header, parent: &Header) -> Result<(), Error> {
-        if *header.parent_hash() != parent.hash() {
-            Err(BlockError::UnknownParent(parent.hash()))?
-        }
-        let snap = self.snapshot(parent.number(), parent.hash())?;
-        if header.timestamp()
-            < parent.timestamp() + self.period + snap.back_off_time(header.author())
-        {
-            Err(EngineError::ParliaFutureBlock)?
-        }
-        let diff = match parent.gas_limit() > header.gas_limit() {
-            true => parent.gas_limit() - header.gas_limit(),
-            false => header.gas_limit() - parent.gas_limit(),
-        };
-        let limit = parent.gas_limit() / GAS_LIMIT_BOUND_DIVISOR;
-        if diff > limit {
-            Err(BlockError::InvalidGasLimit(OutOfBounds {
-                min: Some(parent.gas_limit() - limit),
-                max: Some(parent.gas_limit() + limit),
-                found: *header.gas_limit(),
             }))?
         }
         Ok(())

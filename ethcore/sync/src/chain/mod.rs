@@ -691,7 +691,6 @@ impl ChainSync {
         fork_filter: ForkFilterApi,
     ) -> Self {
         let chain_info = chain.chain_info();
-        println!("genesis hash {}", chain_info.genesis_hash);
         let best_block = chain.chain_info().best_block_number;
         let state = Self::get_init_state(config.warp_sync, chain);
 

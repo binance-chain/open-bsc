@@ -1123,7 +1123,7 @@ impl<B: Backend> State<B> {
         )
     }
 
-    #[cfg(feature = "to-pod-full")]
+    // #[cfg(feature = "to-pod-full")]
     /// Populate a PodAccount map from this state.
     /// Warning this is not for real time use.
     /// Use of this method requires FatDB mode to be able
@@ -1161,7 +1161,7 @@ impl<B: Backend> State<B> {
     /// values of the account to the PodAccount.
     /// This function is only intended for use in small tests or with fresh accounts.
     /// It requires FatDB.
-    #[cfg(feature = "to-pod-full")]
+    // #[cfg(feature = "to-pod-full")]
     fn account_to_pod_account(
         &self,
         account: &Account,
