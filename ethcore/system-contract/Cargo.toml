@@ -1,0 +1,15 @@
+[package]
+description = "Parity Ethereum (EthCore) Contract Calls and Blockchain Service & Registry Information"
+name = "ethcore-system-contract"
+version = "0.1.0"
+license = "GPL-3.0"
+authors = ["Parity Technologies <admin@parity.io>"]
+edition = "2018"
+
+[dependencies]
+
+prost-amino = "0.6"
+prost-amino-derive = "0.6"
+byteorder = "1.3.4"
+bstr = "0.2.14"
+prost = "0.6"

@@ -137,6 +137,7 @@ members = [
 	"util/keccak-hasher",
 	"util/patricia-trie-ethereum",
 	"util/fastmap",
+	"ethcore/system-contract",
 	"util/time-utils"
 ]
 
