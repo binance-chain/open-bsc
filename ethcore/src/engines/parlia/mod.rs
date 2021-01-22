@@ -26,7 +26,6 @@ pub mod util;
 
 use block::ExecutedBlock;
 use client::{BlockId, EngineClient};
-use engines;
 use engines::parlia::params::ParliaParams;
 use engines::parlia::snapshot::Snapshot;
 use engines::parlia::util::{is_system_transaction, recover_creator};
@@ -39,10 +38,8 @@ use kvdb::KeyValueDB;
 use lru_cache::LruCache;
 use machine::{Call, EthereumMachine};
 use parking_lot::RwLock;
-use state::CleanupMode;
 use std::collections::BTreeSet;
 use std::ops::{Add, Mul};
-use std::str::FromStr;
 use std::sync::{Arc, Weak};
 use std::time::{Duration, SystemTime};
 use types::header::{ExtendedHeader, Header};
@@ -143,13 +140,11 @@ impl Parlia {
                             }
                         }
                     }
-                    println!("{:?}", block_hash);
                     if let Some(header) = c.block_header(BlockId::Hash(block_hash)) {
                         headers.push(header.decode()?);
                         block_number -= 1;
                         block_hash = header.parent_hash();
                     } else {
-                        println!("{:?}", block_hash);
                         Err(EngineError::ParliaUnContinuousHeader)?
                     }
                 }
