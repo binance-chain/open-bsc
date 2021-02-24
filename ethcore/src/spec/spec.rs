@@ -134,6 +134,8 @@ pub struct CommonParams {
     pub eip2028_transition: BlockNumber,
     /// Number of first block where EIP-2315 rules begin.
     pub eip2315_transition: BlockNumber,
+    // Number of mirror sync fork begin.
+    pub mirror_sync_transition: BlockNumber,
     /// Number of first block where dust cleanup rules (EIP-168 and EIP169) begin.
     pub dust_protection_transition: BlockNumber,
     /// Nonce cap increase per block. Nonce cap is only checked if dust protection is enabled.
@@ -344,6 +346,9 @@ impl From<ethjson::spec::Params> for CommonParams {
                 .map_or_else(BlockNumber::max_value, Into::into),
             eip2315_transition: p
                 .eip2315_transition
+                .map_or_else(BlockNumber::max_value, Into::into),
+            mirror_sync_transition: p
+                .mirror_sync_transition
                 .map_or_else(BlockNumber::max_value, Into::into),
             dust_protection_transition: p
                 .dust_protection_transition
@@ -632,6 +637,7 @@ impl Spec {
             params.eip1884_transition,
             params.eip2028_transition,
             params.eip2315_transition,
+            params.mirror_sync_transition,
             params.dust_protection_transition,
             params.wasm_activation_transition,
             params.wasm_disable_transition,

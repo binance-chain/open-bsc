@@ -16,12 +16,14 @@
 
 //! Implementation of the Parlia POSA Engine.
 #![allow(missing_docs)]
+mod contract_upgrade;
 mod params;
 mod snapshot;
 pub mod util;
 
 use block::ExecutedBlock;
 use client::{BlockId, EngineClient};
+use engines::parlia::contract_upgrade::upgrade_build_in_system_contract;
 use engines::{
     parlia::{
         params::ParliaParams,
@@ -179,6 +181,10 @@ impl Parlia {
                 .map(|out| (out, Vec::new()))
         })
     }
+
+    fn upgrade_build_in_system_contract(&self, _block: &mut ExecutedBlock) {
+        upgrade_build_in_system_contract(self.machine.params(), _block);
+    }
 }
 
 /// whether it is a parlia engine
@@ -193,6 +199,16 @@ impl Engine<EthereumMachine> for Parlia {
 
     fn machine(&self) -> &EthereumMachine {
         &self.machine
+    }
+
+    fn on_new_block(
+        &self,
+        _block: &mut ExecutedBlock,
+        _epoch_begin: bool,
+        _ancestry: &mut dyn Iterator<Item = ExtendedHeader>,
+    ) -> Result<(), Error> {
+        self.upgrade_build_in_system_contract(_block);
+        Ok(())
     }
 
     fn on_close_block(&self, _block: &mut ExecutedBlock) -> Result<(), Error> {
