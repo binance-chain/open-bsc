@@ -571,7 +571,7 @@ impl TmHeaderVerifier {
                 )
                 .is_err()
             {
-                return Err("InvalidSignature");
+                continue;
             }
 
             tallied_voting_power += validator.voting_power;
