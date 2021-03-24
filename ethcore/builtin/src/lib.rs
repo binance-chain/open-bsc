@@ -670,7 +670,7 @@ impl Implementation for EthereumBuiltin {
             EthereumBuiltin::Bls12G2Add(inner) => inner.execute(input, output),
             EthereumBuiltin::Bls12G2Mul(inner) => inner.execute(input, output),
             EthereumBuiltin::Bls12G2MultiExp(inner) => inner.execute(input, output),
-            EthereumBuiltin::Bls12Pairing(inner) => inner.execute(input, output),            
+            EthereumBuiltin::Bls12Pairing(inner) => inner.execute(input, output),
             EthereumBuiltin::Bls12MapFpToG1(inner) => inner.execute(input, output),
             EthereumBuiltin::Bls12MapFp2ToG2(inner) => inner.execute(input, output),
             EthereumBuiltin::TendermintHeaderVerify(inner) => inner.execute(input, output),
