@@ -20,7 +20,7 @@ num = { version = "0.1", default-features = false, features = ["bigint"] }
 parity-bytes = "0.1"
 parity-crypto = "0.4.0"
 eth_pairings = { git = "https://github.com/matter-labs/eip1962.git", default-features = false, features = ["eip_2537"], rev = "ece6cbabc41948db4200e41f0bfdab7ab94c7af8" }
-
+tiny-keccak = { version = "2.0", features = ["sha3"] }
 [dev-dependencies]
 hex-literal = "0.2.1"
 maplit = "1.0.2"

@@ -64,7 +64,9 @@ pub use self::{
     prefix::Prefix,
     random::Random,
     secret::Secret,
-    signature::{recover, sign, verify_address, verify_public, Signature},
+    signature::{
+        recover, sign, un_compressed_ec_recover, verify_address, verify_public, Signature,
+    },
 };
 
 use ethereum_types::H256;
