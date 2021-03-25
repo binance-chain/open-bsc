@@ -1636,7 +1636,7 @@ mod tests {
     }
 
     #[test]
-    fn ecrecover() {
+    fn ecrecoverPublicKey() {
         let f = EthereumBuiltin::from_str("ecrecoverPublicKey").unwrap();
         let i = hex!("c5d6c454e4d7a8e8a654f5ef96e8efe41d21a65b171b298925414aa3dc061e3700000000000000000000000000000000000000000000000000000000000000004011de30c04302a2352400df3d1459d6d8799580dceb259f45db1d99243a8d0c64f548b7776cb93e37579b830fc3efce41e12e0958cda9f8c5fcad682c610795");
 
