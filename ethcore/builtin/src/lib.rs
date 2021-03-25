@@ -35,14 +35,14 @@ use eth_pairings::public_interface::eip2537::{
 };
 use ethereum_types::{H256, U256};
 use ethjson;
-use ethkey::{recover as ec_recover, Signature};
+use ethkey::{recover as ec_recover, un_compressed_ec_recover as ec_recover_publicKey, Signature};
 use keccak_hash::keccak;
 use log::{trace, warn};
 use num::{BigUint, One, Zero};
 use parity_bytes::BytesRef;
 use parity_crypto::digest;
 use tendermint::lite::{iavl_proof, light_client};
-
+use tiny_keccak::{Hasher, Sha3};
 /// Native implementation of a built-in contract.
 pub trait Implementation: Send + Sync {
     /// execute this built-in on the given input, writing to the given output.
@@ -612,6 +612,10 @@ enum EthereumBuiltin {
     TendermintHeaderVerify(TendermintHeaderVerify),
     /// iavl_proof_verify mapping
     IavlProofVerify(IavlProofVerify),
+    ///sha3fips
+    Sha3Fips(Sha3Fips),
+    /// ec recover public key
+    EcRecoverPublicKey(EcRecoverPublicKey),
 }
 
 impl FromStr for EthereumBuiltin {
@@ -641,6 +645,8 @@ impl FromStr for EthereumBuiltin {
                 TendermintHeaderVerify,
             )),
             "iavl_proof_verify" => Ok(EthereumBuiltin::IavlProofVerify(IavlProofVerify)),
+            "sha3fips" => Ok(EthereumBuiltin::Sha3Fips(Sha3Fips)),
+            "ecrecoverPublicKey" => Ok(EthereumBuiltin::EcRecoverPublicKey(EcRecoverPublicKey)),
             _ => return Err(format!("invalid builtin name: {}", name)),
         }
     }
@@ -669,6 +675,8 @@ impl Implementation for EthereumBuiltin {
             EthereumBuiltin::Bls12MapFp2ToG2(inner) => inner.execute(input, output),
             EthereumBuiltin::TendermintHeaderVerify(inner) => inner.execute(input, output),
             EthereumBuiltin::IavlProofVerify(inner) => inner.execute(input, output),
+            EthereumBuiltin::Sha3Fips(inner) => inner.execute(input, output),
+            EthereumBuiltin::EcRecoverPublicKey(inner) => inner.execute(input, output),
         }
     }
 }
@@ -743,6 +751,14 @@ pub struct TendermintHeaderVerify;
 #[derive(Debug)]
 /// The IavlProofVerify builtin.
 pub struct IavlProofVerify;
+
+#[derive(Debug)]
+/// the SHA3 FIPS 202 builtin
+pub struct Sha3Fips;
+
+#[derive(Debug)]
+/// The EcRecoverPublic uncompressed Key builtin
+pub struct EcRecoverPublicKey;
 
 impl Implementation for Identity {
     fn execute(&self, input: &[u8], output: &mut BytesRef) -> Result<(), &'static str> {
@@ -1314,6 +1330,50 @@ impl Bn128Pairing {
     }
 }
 
+impl Implementation for Sha3Fips {
+    fn execute(&self, input: &[u8], output: &mut BytesRef) -> Result<(), &'static str> {
+        let mut sha3 = Sha3::v256();
+        sha3.update(&*input);
+        let mut result = [0u8; 32];
+        sha3.finalize(&mut result);
+        //dbg!(res.to_hex());
+        //output.write(0, result);
+
+        output.write(0, &result);
+        Ok(())
+    }
+}
+
+impl Implementation for EcRecoverPublicKey {
+    fn execute(&self, i: &[u8], output: &mut BytesRef) -> Result<(), &'static str> {
+        let len = min(i.len(), 128);
+
+        let mut input = [0; 128];
+        input[..len].copy_from_slice(&i[..len]);
+
+        let hash = H256::from_slice(&input[0..32]);
+        let v = H256::from_slice(&input[32..64]);
+        let r = H256::from_slice(&input[64..96]);
+        let s = H256::from_slice(&input[96..128]);
+
+        let bit = match v[31] {
+            0 | 1 if v.0[..31] == [0; 31] => v[31],
+            _ => {
+                return Ok(());
+            }
+        };
+
+        let s = Signature::from_rsv(&r, &s, bit);
+        if s.is_valid() {
+            if let Ok(p) = ec_recover_publicKey(&s, &hash) {
+                output.write(0, &p);
+            }
+        }
+
+        Ok(())
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::{
@@ -1558,6 +1618,34 @@ mod tests {
         assert_eq!(
             &ov[..],
             &hex!("e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855")[..]
+        );
+    }
+
+    #[test]
+    fn sha256fips() {
+        let f = EthereumBuiltin::from_str("sha3fips").unwrap();
+        let i = hex!("0448250ebe88d77e0a12bcf530fe6a2cf1ac176945638d309b840d631940c93b78c2bd6d16f227a8877e3f1604cd75b9c5a8ab0cac95174a8a0a0f8ea9e4c10bca");
+
+        let mut o = [255u8; 32];
+        f.execute(&i[..], &mut BytesRef::Fixed(&mut o[..]))
+            .expect("Builtin should not fail");
+        assert_eq!(
+            &o[..],
+            hex!("c7647f7e251bf1bd70863c8693e93a4e77dd0c9a689073e987d51254317dc704")
+        );
+    }
+
+    #[test]
+    fn ecrecoverPublicKey() {
+        let f = EthereumBuiltin::from_str("ecrecoverPublicKey").unwrap();
+        let i = hex!("c5d6c454e4d7a8e8a654f5ef96e8efe41d21a65b171b298925414aa3dc061e3700000000000000000000000000000000000000000000000000000000000000004011de30c04302a2352400df3d1459d6d8799580dceb259f45db1d99243a8d0c64f548b7776cb93e37579b830fc3efce41e12e0958cda9f8c5fcad682c610795");
+
+        let mut o = [255u8; 65];
+        f.execute(&i[..], &mut BytesRef::Fixed(&mut o[..]))
+            .expect("Builtin should not fail");
+        assert_eq!(
+            &o[..],
+            &hex!("48250ebe88d77e0a12bcf530fe6a2cf1ac176945638d309b840d631940c93b78c2bd6d16f227a8877e3f1604cd75b9c5a8ab0cac95174a8a0a0f8ea9e4c10bca")[..]
         );
     }
 

@@ -266,6 +266,18 @@ pub fn recover(signature: &Signature, message: &Message) -> Result<Public, Error
     Ok(public)
 }
 
+pub fn un_compressed_ec_recover(signature: &Signature, message: &Message) -> Result<H520, Error> {
+    let context = &SECP256K1;
+    let rsig = RecoverableSignature::from_compact(
+        context,
+        &signature[0..64],
+        RecoveryId::from_i32(signature[64] as i32)?,
+    )?;
+    let pubkey = context.recover(&SecpMessage::from_slice(&message[..])?, &rsig)?;
+    let serialized = pubkey.serialize_vec(context, false);
+    Ok(H520::from(&serialized[0..65]))
+}
+
 #[cfg(test)]
 mod tests {
     use super::{recover, sign, verify_address, verify_public, Signature};
